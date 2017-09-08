@@ -7,14 +7,45 @@ mylm <- function(formula, data = list(), contrasts = NULL, ...){
   y  <- model.response(mf)
   terms <- attr(mf, "terms")
 
-
   # Add code here to calculate coefficients, residuals, fitted values, etc...
   # and store the results in the list est
+
+  # Calculating Beta coefficents
+  Xt <- t(X)
+  betahat <- solve(Xt %*% X) %*% Xt %*% y
   est <- list(terms = terms, model = mf)
+  est$coeff = betahat
+
+  # Calculating residuals, res, and product inverse(XtX)
+  XtX_inv <- solve(Xt %*% X)
+  H <- X %*% XtX_inv %*% Xt
+  Yhat <- H %*% y
+  res <- y - Yhat
+  est$residuals <- res
+  est$XtX_inv <- XtX_inv
+
 
   # Store call and formula used
   est$call <- match.call()
   est$formula <- formula
+
+  # Store design matrix, response and fitted values
+  # est$mat <- X
+  est$response <- y
+  est$fitted.values <- Yhat
+
+  # Calculate and store residual standard error and standard error
+  mu_est <- X %*% betahat
+  SSE <- t(y - mu_est) %*% (y - mu_est)
+  n <- dim(data)[1]
+  p <- dim(model1$coeff)[1]
+  est$res_std_err <- sqrt( SSE / (n-p) )
+
+  # cov is the covariance matrix for betahat
+  est$cov <- (est$res_std_err^2)[1] * ( XtX_inv)
+
+  # degrees of freedom for our model (observations - estimated parameters)
+  est$freedom <- n-p
 
   # Set class name. This is very important!
   class(est) <- 'mylm'
@@ -26,7 +57,14 @@ mylm <- function(formula, data = list(), contrasts = NULL, ...){
 print.mylm <- function(object, ...){
   # Code here is used when print(object) is used on objects of class "mylm"
   # Useful functions include cat, print.default and format
-  cat('Info about object\n')
+
+  cat('Call:\n')
+  print.default(object$call)
+  cat('\n')
+
+  cat('Coefficients:\n')
+  out <- t(object$coeff)
+  print.default(format(out, digits = 4))
 }
 
 summary.mylm <- function(object, ...){
